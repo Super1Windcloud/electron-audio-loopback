@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>Transcript</title>
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self';
+               script-src 'self' 'unsafe-inline';
+               style-src 'self' 'unsafe-inline';
+               connect-src 'self' ws: wss: https://api.deepgram.com;
+               img-src 'self' data: blob:;">
+
+  <style>
+      body {
+          font-family: "Segoe UI", Roboto, sans-serif;
+          background: linear-gradient(135deg, #2c3e50, #4ca1af);
+          color: #fff;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          margin: 0;
+      }
+
+      .app-container {
+          background: rgba(255, 255, 255, 0.1);
+          padding: 30px;
+          border-radius: 16px;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+          width: 600px;
+          text-align: center;
+      }
+
+      .status {
+          margin: 10px 0;
+          padding: 6px 12px;
+          border-radius: 10px;
+          font-weight: bold;
+      }
+
+      .status.connected {
+          background-color: #27ae60;
+      }
+
+      .status.disconnected {
+          background-color: #c0392b;
+      }
+
+      .controls {
+          margin: 20px 0;
+      }
+
+      button {
+          padding: 10px 20px;
+          border: none;
+          border-radius: 8px;
+          font-size: 16px;
+          cursor: pointer;
+          margin: 0 5px;
+          transition: 0.2s;
+      }
+
+      button:hover {
+          opacity: 0.9;
+      }
+
+      #startBtn {
+          background-color: #3498db;
+          color: white;
+      }
+
+      #stopBtn {
+          background-color: #e74c3c;
+          color: white;
+      }
+
+      .transcript-box {
+          background: rgba(0, 0, 0, 0.3);
+          border-radius: 12px;
+          padding: 20px;
+          text-align: left;
+          height: 200px;
+          overflow-y: auto;
+      }
+
+      .transcript-box p {
+          white-space: pre-wrap;
+          line-height: 1.5;
+      }
+
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <h1>🎤 实时语音转录</h1>
+  <div id="status" class="status disconnected">未连接</div>
+
+  <div class="controls">
+    <select id="transcriptionType" style="padding: 8px; margin-right: 10px; border-radius: 8px; font-size: 16px;">
+      <option value="deepgram">Deepgram (Online)</option>
+      <option value="assembly">AssemblyAI (Online)</option>
+    </select>
+    
+    <select id="audioCaptureType" style="padding: 8px; margin-right: 10px; border-radius: 8px; font-size: 16px;">
+      <option value="electron">Electron Loopback</option>
+      <option value="recall">Recall AI</option>
+    </select>
+    
+    <button id="startBtn">开始监听</button>
+    <button id="stopBtn" disabled>停止</button>
+  </div>
+
+  <div class="transcript-box" id="transcriptBox">
+    <p><strong>实时转录：</strong><span id="partialTranscript">等待语音输入...</span></p>
+    <p><strong>最终结果：</strong><span id="finalTranscript">—</span></p>
+  </div>
+</div>
+
+<script src="./render.js" lang="js">
+
+</script>
+</body>
+</html>
