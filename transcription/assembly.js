@@ -26,6 +26,8 @@ export async function createAssemblyStreamingSession({
         apiKey,
         sampleRate,
         encoding,
+        languageCode: "zh",
+        speechModel: "universal-streaming-multilingual",
         formatTurns: false,
     });
 

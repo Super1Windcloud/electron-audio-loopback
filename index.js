@@ -19,6 +19,7 @@ initMain();
 const DEFAULT_SAMPLE_RATE = 44100;
 const DEFAULT_CHANNELS = 1;
 const DEFAULT_ENCODING = "linear16";
+const RECALL_SUPPORTED_PROVIDERS = new Set(["deepgram", "assembly"]);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,16 +45,33 @@ const sendStatus = (status) => {
 	mainWindow?.webContents.send("status-update", status);
 };
 
+const extractTranscriptText = (payload) => {
+    if (typeof payload === "string") return payload;
+    if (!payload || typeof payload !== "object") return "";
+
+    if (typeof payload.text === "string") return payload.text;
+    if (typeof payload.transcript === "string") return payload.transcript;
+    if (typeof payload.transcript_text === "string") return payload.transcript_text;
+
+    if (Array.isArray(payload.alternatives)) {
+        const altText = payload.alternatives
+            .map((alt) => (typeof alt?.transcript === "string" ? alt.transcript : ""))
+            .find((value) => value?.length);
+        if (altText) return altText;
+    }
+
+    if (typeof payload.message === "string") return payload.message;
+
+    return payload.toString?.() ?? "";
+};
+
 const emitTranscript = (text, isFinal = false) => {
-	if (typeof text !== "string") {
-		text = text?.toString?.() ?? "";
-	}
-	const normalized = text.trim();
-	if (!normalized.length) return;
-	mainWindow?.webContents.send("transcript", normalized);
-	if (isFinal) {
-		finalTranscript = `${finalTranscript} ${normalized}`.trim();
-		mainWindow?.webContents.send("transcript-final", finalTranscript);
+    const normalized = extractTranscriptText(text).trim();
+    if (!normalized.length) return;
+    mainWindow?.webContents.send("transcript", normalized);
+    if (isFinal) {
+        finalTranscript = `${finalTranscript} ${normalized}`.trim();
+        mainWindow?.webContents.send("transcript-final", finalTranscript);
 	}
 };
 
@@ -127,13 +145,19 @@ const createElectronTranscriptionSession = async ({
 		});
 	}
 
-	return createDeepgramSession({
-		apiKey: process.env.DEEPGRAM_API_KEY,
-		sampleRate,
-		channels,
-		encoding,
-		...baseCallbacks,
-	});
+	if (transcriptionType === "deepgram") {
+		return createDeepgramSession({
+			apiKey: process.env.DEEPGRAM_API_KEY,
+			sampleRate,
+			channels,
+			encoding,
+			...baseCallbacks,
+		});
+	}
+
+	throw new Error(
+		`Electron Loopback 暂未实现 "${transcriptionType}" 转写，请先选择 Deepgram 或 AssemblyAI。`,
+	);
 };
 
 const startTranscriptionSession = async ({
@@ -148,6 +172,11 @@ const startTranscriptionSession = async ({
 	currentAudioCaptureType = audioCaptureType;
 
 	if (audioCaptureType === "recall") {
+		if (!RECALL_SUPPORTED_PROVIDERS.has(transcriptionType)) {
+			throw new Error(
+				"使用 Recall 录音时只能选择 AssemblyAI 或 Deepgram 作为实时转写提供商。",
+			);
+		}
 		if (!isRecallRecordingActive()) {
 			throw new Error(
 				"Recall capture is not active. Start Recall recording before transcription.",

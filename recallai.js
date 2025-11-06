@@ -3,15 +3,34 @@ import RecallAiSdk from "@recallai/desktop-sdk";
 let recallRecordingActive = false;
 let recallWindowId = null;
 let realtimeHandlers = null;
+let recallSdkInitialized = false;
 
 const RECALL_REALTIME_EVENT = "transcript.data";
+const SHOULD_DEBUG_RECALL = process.env.DEBUG_RECALL === "1";
 
 const providerMap = {
 	assembly: "assembly_ai_v3_streaming",
 	deepgram: "deepgram_streaming",
 };
 
+const providerDefaults = {
+	assembly_ai_v3_streaming: {
+		language_code: "zh",
+		speech_model: "universal-streaming-multilingual",
+	},
+	deepgram_streaming: {
+		language: "zh",
+	},
+};
+
+const debugRecall = (...args) => {
+	if (SHOULD_DEBUG_RECALL) {
+		console.warn("[Recall]", ...args);
+	}
+};
+
 function emitRealtimeStatus(status) {
+	debugRecall("status", status);
 	realtimeHandlers?.onStatus?.(status);
 }
 
@@ -23,11 +42,52 @@ function emitRealtimeError(error) {
 		);
 	}
 	realtimeHandlers?.onError?.(error);
+	debugRecall("error", error);
 }
 
 function normalizeRealtimeTranscript(payload) {
-	if (!payload || payload.event !== RECALL_REALTIME_EVENT) return null;
-	const data = payload.data ?? {};
+	if (!payload) {
+		return null;
+	}
+
+	const eventType =
+		payload.event ??
+		payload.type ??
+		payload.event_type ??
+		payload.data?.event ??
+		payload.data?.type ??
+		null;
+
+	if (eventType !== RECALL_REALTIME_EVENT) {
+		debugRecall("ignored realtime event", payload);
+		return null;
+	}
+
+	const data =
+		payload.data && typeof payload.data === "object"
+			? payload.data
+			: payload;
+
+	const nestedData =
+		data.data && typeof data.data === "object" ? data.data : undefined;
+
+	const extractWords = (words) => {
+		if (!Array.isArray(words)) return "";
+		const parts = words
+			.map((word) => {
+				if (typeof word === "string") return word;
+				if (!word || typeof word !== "object") return "";
+				return (
+					word.text ||
+					word.word ||
+					word.transcript ||
+					word.display_text ||
+					""
+				).trim();
+			})
+			.filter((value) => value.length > 0);
+		return parts.join(" ").trim();
+	};
 
 	const textCandidates = [
 		data.transcript?.text,
@@ -37,6 +97,10 @@ function normalizeRealtimeTranscript(payload) {
 		data.message,
 		data.alternatives?.[0]?.transcript,
 		data.sentences?.[0]?.text,
+		nestedData?.text,
+		nestedData?.transcript,
+		nestedData?.message,
+		extractWords(nestedData?.words),
 	];
 
 	const text = textCandidates.find(
@@ -52,6 +116,18 @@ function normalizeRealtimeTranscript(payload) {
 		data.status === "final",
 		data.transcript_type === "final",
 		data.completed === true,
+		nestedData?.is_final,
+		nestedData?.final,
+		nestedData?.transcript_type === "final",
+		nestedData?.status === "final",
+		Array.isArray(nestedData?.words) &&
+			nestedData.words.length > 0 &&
+			nestedData.words.every(
+				(word) =>
+					typeof word?.word_is_final === "boolean"
+						? word.word_is_final
+						: word?.is_final === true,
+			),
 	];
 
 	return {
@@ -62,16 +138,19 @@ function normalizeRealtimeTranscript(payload) {
 }
 
 RecallAiSdk.addEventListener("realtime-event", (payload) => {
+	debugRecall("realtime-event", payload);
 	const normalized = normalizeRealtimeTranscript(payload);
 	if (!normalized) return;
 	realtimeHandlers?.onTranscript?.(normalized);
 });
 
 RecallAiSdk.addEventListener("recording-started", () => {
+	debugRecall("recording-started");
 	emitRealtimeStatus("connected");
 });
 
 RecallAiSdk.addEventListener("recording-ended", () => {
+	debugRecall("recording-ended");
 	emitRealtimeStatus("closed");
 });
 
@@ -82,6 +161,14 @@ RecallAiSdk.addEventListener("error", (event) => {
 
 export function setRecallRealtimeHandlers(handlers) {
 	realtimeHandlers = handlers;
+}
+
+async function ensureRecallSdkInitialized(options = {}) {
+	if (recallSdkInitialized) {
+		return;
+	}
+	await RecallAiSdk.init(options);
+	recallSdkInitialized = true;
 }
 
 async function requestUploadTokenViaRecallApi({
@@ -142,6 +229,7 @@ async function requestUploadTokenFromBackend({
 	clientToken,
 	backendUrl,
 	transcriptionProvider,
+	providerOptions,
 }) {
 	if (!clientToken) {
 		throw new Error(
@@ -155,7 +243,7 @@ async function requestUploadTokenFromBackend({
 			"Content-Type": "application/json",
 			Authorization: `Bearer ${clientToken}`,
 		},
-		body: JSON.stringify({ transcriptionProvider }),
+		body: JSON.stringify({ transcriptionProvider, providerOptions }),
 	});
 
 	if (!response.ok) {
@@ -181,35 +269,52 @@ export async function startRecallRecording(options = {}) {
 		recordingConfigOverrides = {},
 		recallRegion = process.env.RECALL_REGION,
 		recallApiKey = process.env.RECALL_API_KEY,
+		recallInitOptions,
 	} = options;
 
 	const providerKey =
 		providerMap[transcriptionProvider] ?? providerMap.deepgram;
+	const mergedProviderOptions = {
+		...(providerDefaults[providerKey] ?? {}),
+		...providerOptions,
+	};
 
 	try {
+		const initOptions =
+			typeof recallInitOptions === "object" && recallInitOptions !== null
+				? recallInitOptions
+				: recallRegion
+					? { apiUrl: `https://${recallRegion}.recall.ai` }
+					: {};
+
+		await ensureRecallSdkInitialized(initOptions);
+
 		let uploadToken;
 		if (clientToken || backendUrl) {
 			uploadToken = await requestUploadTokenFromBackend({
 				clientToken,
 				backendUrl,
 				transcriptionProvider,
+				providerOptions: mergedProviderOptions,
 			});
 		} else {
 			uploadToken = await requestUploadTokenViaRecallApi({
 				apiKey: recallApiKey,
 				region: recallRegion,
 				providerKey,
-				providerOptions,
+				providerOptions: mergedProviderOptions,
 				recordingConfigOverrides,
 			});
 		}
 
 		recallWindowId = await RecallAiSdk.prepareDesktopAudioRecording();
+		debugRecall("prepared window", recallWindowId);
 		await RecallAiSdk.startRecording({
 			windowId: recallWindowId,
 			uploadToken,
 		});
 
+		debugRecall("startRecording invoked");
 		recallRecordingActive = true;
 		return true;
 	} catch (error) {
