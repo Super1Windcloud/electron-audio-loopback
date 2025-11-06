@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.send("start-transcription", options ?? {}),
 	stopTranscription: () => ipcRenderer.send("stop-transcription"),
 	onTranscript: (callback) =>
-		ipcRenderer.on("transcript", (_, text) => callback(text)),
+		ipcRenderer.on("transcript", (_, payload) => callback(payload)),
 	onFinalTranscript: (callback) =>
 		ipcRenderer.on("transcript-final", (_, text) => callback(text)),
 	onStatus: (callback) =>

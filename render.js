@@ -18,6 +18,51 @@ let recallRecordingStarted = false;
 let currentSampleRate = 44100;
 let currentAudioCaptureType = "electron"; // default to electron
 let rollingTranscript = "";
+const NON_ACCUMULATING_TRANSCRIPT_PROVIDERS = new Set(["assembly"]);
+
+const normalizeTranscriptPayload = (payload) => {
+    if (
+        typeof payload === "string" ||
+        typeof payload === "number" ||
+        typeof payload === "boolean"
+    ) {
+        return {
+            text: payload.toString().trim(),
+            isFinal: false,
+            provider: null,
+        };
+    }
+
+    if (payload && typeof payload === "object") {
+        const rawText =
+            typeof payload.text === "string"
+                ? payload.text
+                : typeof payload.transcript === "string"
+                    ? payload.transcript
+                    : typeof payload.message === "string"
+                        ? payload.message
+                        : "";
+        const text =
+            typeof rawText === "string"
+                ? rawText.trim()
+                : rawText?.toString?.().trim?.() ?? "";
+
+        return {
+            text,
+            isFinal: Boolean(payload.isFinal),
+            provider:
+                typeof payload.provider === "string" && payload.provider.length
+                    ? payload.provider
+                    : null,
+        };
+    }
+
+    return {text: "", isFinal: false, provider: null};
+};
+
+const shouldReplaceRollingTranscript = (provider) =>
+    typeof provider === "string" &&
+    NON_ACCUMULATING_TRANSCRIPT_PROVIDERS.has(provider);
 
 const PROVIDERS = [
     {
@@ -396,24 +441,25 @@ stopBtn.onclick = async () => {
     statusEl.className = "status disconnected";
     startBtn.disabled = false;
     stopBtn.disabled = true;
+    console.warn("already stop audio capture")
 };
 
-window.electronAPI.onTranscript((text) => {
-    const normalized =
-        typeof text === "string"
-            ? text.trim()
-            : text?.toString?.().trim?.() ?? "";
-
-    if (!normalized.length) {
+window.electronAPI.onTranscript((payload) => {
+    const { text, provider } = normalizeTranscriptPayload(payload);
+    if (!text.length) {
         if (!rollingTranscript.length) {
             partialEl.textContent = "…";
         }
         return;
     }
 
-    rollingTranscript = rollingTranscript.length
-        ? `${rollingTranscript} ${normalized}`
-        : normalized;
+    if (shouldReplaceRollingTranscript(provider)) {
+        rollingTranscript = text;
+    } else {
+        rollingTranscript = rollingTranscript.length
+            ? `${rollingTranscript} ${text}`
+            : text;
+    }
     partialEl.textContent = rollingTranscript;
 });
 
@@ -434,12 +480,12 @@ window.electronAPI.onFinalTranscript((text) => {
 
 window.electronAPI.onStatus((status) => {
     switch (status) {
-		case "connected":
-			statusEl.textContent = "已连接 ✅";
-			statusEl.className = "status connected";
-			streamingEnabled = true;
-			partialEl.textContent = "请开始播放或讲话…";
-			break;
+        case "connected":
+            statusEl.textContent = "已连接 ✅";
+            statusEl.className = "status connected";
+            streamingEnabled = true;
+            partialEl.textContent = "请开始播放或讲话…";
+            break;
         case "error":
             statusEl.textContent = "连接错误 ❌";
             statusEl.className = "status disconnected";
