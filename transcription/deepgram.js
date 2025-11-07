@@ -33,10 +33,10 @@ export function createDeepgramSession({
 			encoding,
 			sample_rate: sampleRate,
 			channels,
-            language: "zh",
-            interim_results: true,
-            smart_format: true,
-        });
+			language: "zh",
+			interim_results: true,
+			smart_format: true,
+		});
 	} catch (error) {
 		throw new Error(`Failed to create Deepgram live session: ${error.message}`);
 	}

@@ -109,7 +109,10 @@ export async function createGladiaSession({
 	const gladiaClient = new GladiaClient(buildGladiaClientOptions(apiKey));
 	const normalizedSampleRate = normalizeSampleRate(Number(sampleRate));
 	const normalizedEncoding = normalizeEncoding(encoding);
-	const normalizedChannels = Math.max(1, Number.isFinite(channels) ? channels : 1);
+	const normalizedChannels = Math.max(
+		1,
+		Number.isFinite(channels) ? channels : 1,
+	);
 
 	let session;
 	try {
@@ -164,7 +167,9 @@ export async function createGladiaSession({
 
 	const handleError = (error) => {
 		const normalizedError =
-			error instanceof Error ? error : new Error(String(error ?? "Unknown error"));
+			error instanceof Error
+				? error
+				: new Error(String(error ?? "Unknown error"));
 		onError?.(normalizedError);
 		onStatus?.("error");
 		cleanup();

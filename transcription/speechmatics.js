@@ -21,8 +21,7 @@ const getLanguage = () =>
 	process.env.SPEECHMATICS_LANGUAGE?.trim?.() || DEFAULT_LANGUAGE;
 
 const getOperatingPoint = () =>
-	process.env.SPEECHMATICS_OPERATING_POINT?.trim?.() ||
-	DEFAULT_OPERATING_POINT;
+	process.env.SPEECHMATICS_OPERATING_POINT?.trim?.() || DEFAULT_OPERATING_POINT;
 
 const getJwtTtl = () => {
 	const numeric = Number(process.env.SPEECHMATICS_JWT_TTL);
@@ -57,7 +56,9 @@ const isResultFinal = (message, data) => {
 	if (typeof data?.metadata?.is_final === "boolean") {
 		return data.metadata.is_final;
 	}
-	return Boolean(data?.results?.some((result) => result?.is_eos || result?.is_final));
+	return Boolean(
+		data?.results?.some((result) => result?.is_eos || result?.is_final),
+	);
 };
 
 /**
@@ -83,35 +84,53 @@ export async function createSpeechmaticsSession({
 	}
 
 	const normalizedSampleRate = clampSampleRate(Number(sampleRate));
-	const normalizedChannels = Math.max(1, Number.isFinite(channels) ? channels : 1);
+	const normalizedChannels = Math.max(
+		1,
+		Number.isFinite(channels) ? channels : 1,
+	);
 
-	const jwt = await createSpeechmaticsJWT({
-		type: "rt",
-		apiKey,
-		ttl: getJwtTtl(),
-		region: getRegion(),
-	});
+	// Define error handler first to make it available for timeouts
+	const handleError = (error) => {
+		const normalizedError =
+			error instanceof Error
+				? error
+				: new Error(String(error ?? "Unknown error"));
+		onError?.(normalizedError);
+		onStatus?.("error");
+		closed = true; // Set closed status to true on error to prevent further operations
+		cleanup?.();
+	};
+
+	// Add timeout for JWT creation to prevent hanging
+	let jwt;
+	const jwtTimeout = setTimeout(() => {
+		handleError(new Error("JWT creation timeout for Speechmatics after 10s"));
+	}, 10000); // 10 second timeout for JWT creation
+
+	try {
+		jwt = await createSpeechmaticsJWT({
+			type: "rt",
+			apiKey,
+			ttl: getJwtTtl(),
+			region: getRegion(),
+		});
+		clearTimeout(jwtTimeout);
+	} catch (error) {
+		clearTimeout(jwtTimeout);
+		throw new Error(`Failed to create Speechmatics JWT: ${error.message}`);
+	}
 
 	const realtimeUrl = getRealtimeUrl();
 	const client = new RealtimeClient(
 		realtimeUrl
 			? {
 					url: realtimeUrl,
-			  }
+				}
 			: undefined,
 	);
 
 	let closed = false;
 	let listenersBound = false;
-
-	const handleError = (error) => {
-		const normalizedError =
-			error instanceof Error ? error : new Error(String(error ?? "Unknown error"));
-		onError?.(normalizedError);
-		onStatus?.("error");
-		closed = true;
-		cleanup();
-	};
 
 	const handleSocketStateChange = (event) => {
 		switch (event?.socketState) {
@@ -176,9 +195,19 @@ export async function createSpeechmaticsSession({
 	client.addEventListener("receiveMessage", handleReceiveMessage);
 	client.addEventListener("socketStateChange", handleSocketStateChange);
 	listenersBound = true;
-
+	let connectionTimeout = null;
 	try {
 		onStatus?.("connecting");
+
+		// Add timeout for connection establishment
+		connectionTimeout = setTimeout(() => {
+			handleError(
+				new Error(
+					"Connection establishment timeout for Speechmatics after 15s",
+				),
+			);
+		}, 15000); // 15 second timeout for connection
+
 		await client.start(jwt, {
 			audio_format: {
 				type: "raw",
@@ -197,11 +226,14 @@ export async function createSpeechmaticsSession({
 					normalizedChannels > 1
 						? {
 								end_of_utterance_silence_trigger: 0.3,
-						  }
+							}
 						: undefined,
 			},
 		});
+
+		clearTimeout(connectionTimeout);
 	} catch (error) {
+		clearTimeout(connectionTimeout);
 		cleanup();
 		const reason = error instanceof Error ? error.message : String(error);
 		throw new Error(`Failed to start Speechmatics session: ${reason}`);

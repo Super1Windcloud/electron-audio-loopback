@@ -104,7 +104,7 @@ export async function createRevaiSession({
 		? {
 				token: apiKey,
 				deploymentConfig: RevAiApiDeploymentConfigMap.get(deployment),
-		  }
+			}
 		: apiKey;
 
 	const streamingClient = new RevAiStreamingClient(clientOptions, audioConfig);
@@ -166,6 +166,7 @@ export async function createRevaiSession({
 	}
 
 	let listenersCleaned = false;
+
 	function cleanupListeners() {
 		if (listenersCleaned) return;
 		listenersCleaned = true;
@@ -175,13 +176,18 @@ export async function createRevaiSession({
 		streamingClient?.removeListener?.("connect", handleClientConnect);
 		streamingClient?.removeListener?.("close", handleClientClose);
 		streamingClient?.removeListener?.("error", handleStreamError);
-		streamingClient?.removeListener?.("connectFailed", handleClientConnectFailed);
+		streamingClient?.removeListener?.(
+			"connectFailed",
+			handleClientConnectFailed,
+		);
 		streamingClient?.removeListener?.("httpResponse", handleHttpResponse);
 	}
 
 	function handleStreamError(error) {
 		onError?.(
-			error instanceof Error ? error : new Error(String(error ?? "Unknown error")),
+			error instanceof Error
+				? error
+				: new Error(String(error ?? "Unknown error")),
 		);
 		streamClosed = true;
 		onStatus?.("error");
