@@ -9,7 +9,7 @@ The project also integrates with the Recall AI SDK to provide alternative audio 
 ### Key Features
 - Real-time audio transcription with multiple provider support
 - Audio loopback capture from system audio
-- Support for multiple transcription providers (Deepgram, AssemblyAI, Gladia, RevAI, Speechmatics)
+- Support for multiple transcription providers (Deepgram, AssemblyAI, Gladia, RevAI, Speechmatics, Google Gemini)
 - Integration with Recall AI for enhanced transcription capabilities
 - Simplified Chinese conversion for Chinese transcripts
 - Cross-platform desktop application via Electron
@@ -80,6 +80,7 @@ The application supports the following transcription services:
 3. **Gladia**: High-quality transcription service
 4. **RevAI**: Professional transcription API
 5. **Speechmatics**: Enterprise-grade speech recognition
+6. **Google Gemini (@google/genai)**: Flush-based real-time transcription for Gemini models (defaults to `gemini-2.5-flash-lite`, with HTTP fallback that targets the proper API version automatically)
 
 Each provider has its own implementation module in the `transcription/` directory.
 
@@ -90,6 +91,10 @@ The application offers two audio capture methods:
 
 ### Environment Variables
 The application requires API keys for the transcription services in use. See `.env.example` for the full list of supported environment variables.
+For Google Gemini streaming specifically:
+- `GOOGLE_GENAI_USE_LIVE=1` forces the new Live WebSocket session (auto-enabled for `*-live*` models).
+- `GOOGLE_GENAI_LIVE_API_VERSION`/`GOOGLE_GENAI_LIVE_WS_BASE_URL` allow pointing at preview endpoints (defaults target `wss://generativelanguage.googleapis.com` and `v1alpha`).
+- Classic REST chunking remains available by setting `GOOGLE_GENAI_USE_LIVE=0`.
 
 ### UI Components
 The application features a clean, modern UI with:

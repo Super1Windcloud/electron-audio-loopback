@@ -15,3 +15,7 @@ export function convertToSimpleChinese(text) {
 		return value;
 	}
 }
+
+
+
+

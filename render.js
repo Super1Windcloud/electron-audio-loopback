@@ -18,7 +18,10 @@ let recallRecordingStarted = false;
 let currentSampleRate = 44100;
 let currentAudioCaptureType = "electron"; // default to electron
 let rollingTranscript = "";
-const NON_ACCUMULATING_TRANSCRIPT_PROVIDERS = new Set(["assembly"]);
+const NON_ACCUMULATING_TRANSCRIPT_PROVIDERS = new Set([
+	"assembly",
+	"googleGenai",
+]);
 // Store last transcript received from each provider to help with deduplication
 const lastReceivedTranscripts = new Map();
 
@@ -90,6 +93,11 @@ const PROVIDERS = [
 	{
 		value: "speechmatics",
 		label: "Speechmatics (Electron only)",
+		captureTypes: ["electron"],
+	},
+	{
+		value: "googleGenai",
+		label: "Google Gemini (Electron only)",
 		captureTypes: ["electron"],
 	},
 ];
