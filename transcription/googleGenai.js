@@ -70,7 +70,11 @@ const getLiveApiVersion = () =>
 
 const toMimeType = (encoding = "linear16", sampleRate = 16000) => {
 	const normalized = encoding?.toString?.().toLowerCase?.() ?? "linear16";
-	if (normalized === "linear16" || normalized === "pcm16" || normalized === "pcm_s16le") {
+	if (
+		normalized === "linear16" ||
+		normalized === "pcm16" ||
+		normalized === "pcm_s16le"
+	) {
 		return `audio/raw;encoding=pcm16;rate=${sampleRate}`;
 	}
 	if (normalized === "flac") {
@@ -307,7 +311,9 @@ const ensureModelAvailability = async ({ apiKey, modelId, baseUrls }) => {
 		} catch (error) {
 			console.warn(
 				`[Google GenAI] Unable to list models from ${baseUrl}: ${
-					error instanceof Error ? error.message : String(error ?? "Unknown error")
+					error instanceof Error
+						? error.message
+						: String(error ?? "Unknown error")
 				}`,
 			);
 		}
@@ -543,9 +549,7 @@ const createLiveWebsocketSession = async ({
 			return;
 		}
 
-		const modelTurnText = collectTextFromParts(
-			content.modelTurn?.parts ?? [],
-		);
+		const modelTurnText = collectTextFromParts(content.modelTurn?.parts ?? []);
 		if (modelTurnText.length && modelTurnText !== lastModelTranscript) {
 			lastModelTranscript = modelTurnText;
 			onTranscript?.({
@@ -644,12 +648,12 @@ const createLiveWebsocketSession = async ({
 		});
 	});
 
-try {
-	await connectPromise;
-} catch (error) {
-	await setupPromise.catch(() => {});
-	throw error;
-}
+	try {
+		await connectPromise;
+	} catch (error) {
+		await setupPromise.catch(() => {});
+		throw error;
+	}
 
 	await setupPromise;
 
@@ -724,9 +728,7 @@ export async function createGoogleGenaiSession({
 		throw new Error("Missing GOOGLE_GENAI_API_KEY.");
 	}
 
-	const normalizedSampleRate = Number.isFinite(sampleRate)
-		? sampleRate
-		: 16000;
+	const normalizedSampleRate = Number.isFinite(sampleRate) ? sampleRate : 16000;
 	const normalizedChannels =
 		Number.isFinite(channels) && channels > 0 ? channels : 1;
 	const modelId = getModelId();
@@ -748,7 +750,8 @@ export async function createGoogleGenaiSession({
 	}
 
 	const flushIntervalMs = getFlushIntervalMs();
-	const bytesPerSecond = normalizedSampleRate * normalizedChannels * BYTES_PER_SAMPLE;
+	const bytesPerSecond =
+		normalizedSampleRate * normalizedChannels * BYTES_PER_SAMPLE;
 	const minBytesPerFlush = Math.max(
 		Math.round((flushIntervalMs / 1000) * bytesPerSecond),
 		4096,
@@ -777,7 +780,9 @@ export async function createGoogleGenaiSession({
 			},
 		});
 		if (typeof model?.generateContent !== "function") {
-			throw new Error("Current @google/genai client is missing generateContent().");
+			throw new Error(
+				"Current @google/genai client is missing generateContent().",
+			);
 		}
 	} catch (error) {
 		const reason = error instanceof Error ? error.message : String(error);
@@ -817,7 +822,9 @@ export async function createGoogleGenaiSession({
 
 		if (requestInFlight) {
 			flushRequestedWhileBusy =
-				flushRequestedWhileBusy || force || audioBuffer.length >= minBytesPerFlush;
+				flushRequestedWhileBusy ||
+				force ||
+				audioBuffer.length >= minBytesPerFlush;
 			if (pendingRequest) {
 				try {
 					await pendingRequest;

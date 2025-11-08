@@ -17,16 +17,24 @@ import {createGoogleGenaiSession} from "./transcription/googleGenai.js";
 import {createRevaiSession} from "./transcription/revai.js";
 import {createSpeechmaticsSession} from "./transcription/speechmatics.js";
 import {convertToSimpleChinese} from "./utils.js";
+import {logError, setupProcessErrorLogging} from "./logger.js";
 
-dotenv.config({path: "./.env"});
+const envPath = app.isPackaged
+    ? path.join(process.resourcesPath, ".env")
+    : path.resolve(".env");
+dotenv.config({path: envPath});
 initMain();
+setupProcessErrorLogging();
 
 const DEFAULT_SAMPLE_RATE = 44100;
 const DEFAULT_CHANNELS = 1;
 const DEFAULT_ENCODING = "linear16";
 const RECALL_SUPPORTED_PROVIDERS = new Set(["deepgram", "assembly"]);
 const SIMPLIFIED_TRANSCRIPT_PROVIDERS = new Set(["assembly"]); // 仅针对台湾会议
-const REPLACING_FINAL_TRANSCRIPT_PROVIDERS = new Set(["googleGenai", "deepgram"]);
+const REPLACING_FINAL_TRANSCRIPT_PROVIDERS = new Set([
+    "googleGenai",
+    "deepgram",
+]);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -394,4 +402,18 @@ ipcMain.handle("get-recall-status", async () => {
 
 ipcMain.on("send-recall-audio", () => {
     // Recall handles audio internally; this channel is kept for compatibility.
+});
+
+ipcMain.handle("log-error", async (_event, entries = []) => {
+    try {
+        if (Array.isArray(entries)) {
+            logError(...entries);
+        } else {
+            logError(entries);
+        }
+        return {success: true};
+    } catch (error) {
+        console.error("Failed to persist renderer log entry:", error);
+        return {success: false, message: error.message};
+    }
 });

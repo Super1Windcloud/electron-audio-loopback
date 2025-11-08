@@ -23,4 +23,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	getRecallStatus: () => ipcRenderer.invoke("get-recall-status"),
 	sendRecallAudio: (audioData) =>
 		ipcRenderer.send("send-recall-audio", audioData),
+	logError: (...entries) => ipcRenderer.invoke("log-error", entries),
 });

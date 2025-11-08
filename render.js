@@ -1,3 +1,21 @@
+const originalConsoleError = console.error.bind(console);
+
+const forwardRendererErrorLog = (...args) => {
+	try {
+		const api = window?.electronAPI;
+		if (api?.logError) {
+			void api.logError(...args);
+		}
+	} catch (forwardError) {
+		originalConsoleError("Failed to forward renderer error log:", forwardError);
+	}
+};
+
+console.error = (...args) => {
+	forwardRendererErrorLog(...args);
+	originalConsoleError(...args);
+};
+
 const statusEl = document.getElementById("status");
 const partialEl = document.getElementById("partialTranscript");
 const finalEl = document.getElementById("finalTranscript");
