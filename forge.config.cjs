@@ -3,9 +3,9 @@ module.exports = {
     packagerConfig: {
         asar: true,
         executableName: "Transcript",
+        extraResource: [".env"]
     },
     rebuildConfig: {},
-    extraResource:[".env"],
     makers: [
         {
             name: "@electron-forge/maker-squirrel",
