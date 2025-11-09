@@ -60,7 +60,6 @@ transcript/
 ├── preload.js        # Secure IPC bridge
 ├── index.html        # Application UI
 ├── utils.js          # Utility functions
-├── recallai.js       # Recall AI SDK integration
 ├── transcription/    # Transcription service implementations
 │   ├── assembly.js
 │   ├── deepgram.js
@@ -84,10 +83,8 @@ The application supports the following transcription services:
 
 Each provider has its own implementation module in the `transcription/` directory.
 
-### Audio Capture Methods
-The application offers two audio capture methods:
-1. **Electron Loopback**: Uses Electron's audio loopback feature to capture system audio
-2. **Recall AI**: Uses the Recall AI SDK for enhanced audio capture capabilities
+### Audio Capture
+System audio is captured via Electron's loopback integration.
 
 ### Environment Variables
 The application requires API keys for the transcription services in use. See `.env.example` for the full list of supported environment variables.
@@ -103,7 +100,6 @@ The application features a clean, modern UI with:
 - Final transcript display
 - Provider selection dropdowns
 - Start/Stop controls
-- Audio capture method selection
 
 ## Key Dependencies
 
@@ -112,7 +108,6 @@ The application features a clean, modern UI with:
 - `@deepgram/sdk`: Deepgram speech recognition
 - `assemblyai`: AssemblyAI speech recognition
 - `@gladiaio/sdk`: Gladia AI SDK
-- `@recallai/desktop-sdk`: Recall AI desktop SDK
 - `@speechmatics/real-time-client`: Speechmatics real-time client
 - `revai-node-sdk`: RevAI SDK
 - `biomejs/biome`: Code formatting and linting

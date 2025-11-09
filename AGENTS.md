@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-The Electron entrypoint (`index.js`) wires preload (`preload.js`) and renderer logic (`render.js`), while the SDK adapters that talk to AssemblyAI, Deepgram, Gladia, Rev.ai, and Speechmatics live in `transcription/*.js`. Shared helpers stay in `utils.js`, and desktop SDK plumbing is isolated in `recallai.js`. Configuration artifacts such as `.env`, `.env.example`, `.npmrc`, `biome.json`, and `mise.toml` should be updated together so new providers can be enabled without breaking existing pipelines.
+The Electron entrypoint (`index.js`) wires preload (`preload.js`) and renderer logic (`render.js`), while the SDK adapters that talk to AssemblyAI, Deepgram, Gladia, Rev.ai, and Speechmatics live in `transcription/*.js`. Shared helpers stay in `utils.js`. Configuration artifacts such as `.env`, `.env.example`, `.npmrc`, `biome.json`, and `mise.toml` should be updated together so new providers can be enabled without breaking existing pipelines.
 
 ## Build, Test, and Development Commands
 - `npm install` — install dependencies declared in `package.json`.
